@@ -1059,16 +1059,39 @@ function runTrans(){
   }
   $("trfactors").innerHTML = `<span class="small">valid grid widths for length ${target==="tokens"?S.tokens.length:decodeString(S.tokens,S.map).length}: ${factorizations(target==="tokens"?S.tokens.length:S.tokens.length).join(", ")||"none (prime or <4)"}</span>`;
 }
+/* Structural score: counts repeated token n-grams (2..4). A correct
+   un-transposition realigns repeated plaintext words, so repeats jump.
+   Works with ZERO mappings — no key needed. */
+function structuralScore(tokArr){
+  let s=0;
+  for(let n=2;n<=4;n++){
+    const m=new Map();
+    for(let i=0;i+n<=tokArr.length;i++){
+      const g=tokArr.slice(i,i+n).join(",");
+      m.set(g,(m.get(g)||0)+1);
+    }
+    for(const c of m.values()) if(c>1) s += (c-1)*n*n; // weight longer repeats more
+  }
+  return s;
+}
 function sweepTrans(){
   const target=$("trtarget").value;
+  const mappedCount=Object.keys(S.map).length;
+  const useStructural = target==="tokens" && mappedCount < 5;
   const arr = target==="tokens" ? S.tokens : decodeString(S.tokens,S.map).split("");
   const rows=[];
   const evalArr = a => {
     if(!a) return null;
+    if(useStructural){
+      const preview=a.slice(0,25).join(" ");
+      return {txt:preview, score: structuralScore(a)};
+    }
     const txt = target==="tokens" ? a.map(t=>S.map[t]?S.map[t].ch:"?").join("") : a.join("");
-    return {txt, score: scoreText(txt.replace(/\?/g,""))};
+    const clean = txt.replace(/\?/g,"");
+    return {txt, score: clean.length ? scoreText(clean) : -Infinity};
   };
-  const pushRow=(name,a)=>{ const e=evalArr(a); if(e) rows.push({name,...e}); };
+  const pushRow=(name,a)=>{ const e=evalArr(a); if(e && e.score>-Infinity) rows.push({name,...e}); };
+  pushRow("identity (no change — baseline)",[...arr]);
   pushRow("reverse",TRANS.reverse(arr));
   pushRow("oddEven",TRANS.oddEven(arr));
   pushRow("evenOdd",TRANS.evenOdd(arr));
@@ -1083,9 +1106,12 @@ function sweepTrans(){
     pushRow(`spiral w${c}`,TRANS.routeSpiral(arr,c));
   }
   rows.sort((a,b)=>b.score-a.score);
-  addLog("transpositionSweep",{target,tested:rows.length});
-  $("trsweep").innerHTML="<table><tr><th>op</th><th>score</th><th>preview</th></tr>"+
-    rows.slice(0,40).map(r=>`<tr><td class="mono">${esc(r.name)}</td><td>${r.score.toFixed(3)}</td><td class="mono small">${esc(r.txt.slice(0,70))}…</td></tr>`).join("")+"</table>"+
+  addLog("transpositionSweep",{target,tested:rows.length,metric:useStructural?"structural-repeats":"english-ngrams"});
+  const note = useStructural
+    ? `<div class="okbox">Metric: STRUCTURAL (repeated token n-grams, weighted by length). No mappings needed. Compare every row against the identity baseline — only rearrangements scoring meaningfully ABOVE identity are interesting.</div>`
+    : "";
+  $("trsweep").innerHTML=note+"<table><tr><th>op</th><th>score</th><th>preview</th></tr>"+
+    rows.slice(0,40).map(r=>`<tr ${r.name.startsWith("identity")?'style="background:#16324a"':''}><td class="mono">${esc(r.name)}</td><td>${useStructural?r.score:r.score.toFixed(3)}</td><td class="mono small">${esc(String(r.txt).slice(0,70))}…</td></tr>`).join("")+"</table>"+
     `<div class="warnbox">⚠ Sweep scores rank arrangements only. Higher ≠ solved. Any candidate must survive the shuffled-control comparison and read as sustained English.</div>`;
 }
 </script>
