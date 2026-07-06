@@ -1090,7 +1090,7 @@ function sweepTrans(){
     const clean = txt.replace(/\?/g,"");
     return {txt, score: clean.length ? scoreText(clean) : -Infinity};
   };
-  const pushRow=(name,a)=>{ const e=evalArr(a); if(e && e.score>-Infinity) rows.push({name,...e}); };
+  const pushRow=(name,a)=>{ const e=evalArr(a); if(e && e.score>-Infinity) rows.push({name,arr:a,...e}); };
   pushRow("identity (no change — baseline)",[...arr]);
   pushRow("reverse",TRANS.reverse(arr));
   pushRow("oddEven",TRANS.oddEven(arr));
@@ -1106,13 +1106,24 @@ function sweepTrans(){
     pushRow(`spiral w${c}`,TRANS.routeSpiral(arr,c));
   }
   rows.sort((a,b)=>b.score-a.score);
+  // stash full arrangements so they can be adopted
+  window.__sweepRows = rows;
   addLog("transpositionSweep",{target,tested:rows.length,metric:useStructural?"structural-repeats":"english-ngrams"});
   const note = useStructural
     ? `<div class="okbox">Metric: STRUCTURAL (repeated token n-grams, weighted by length). No mappings needed. Compare every row against the identity baseline — only rearrangements scoring meaningfully ABOVE identity are interesting.</div>`
     : "";
-  $("trsweep").innerHTML=note+"<table><tr><th>op</th><th>score</th><th>preview</th></tr>"+
-    rows.slice(0,40).map(r=>`<tr ${r.name.startsWith("identity")?'style="background:#16324a"':''}><td class="mono">${esc(r.name)}</td><td>${useStructural?r.score:r.score.toFixed(3)}</td><td class="mono small">${esc(String(r.txt).slice(0,70))}…</td></tr>`).join("")+"</table>"+
+  $("trsweep").innerHTML=note+"<table><tr><th>op</th><th>score</th><th>preview</th><th></th></tr>"+
+    rows.slice(0,40).map((r,i)=>`<tr ${r.name.startsWith("identity")?'style="background:#16324a"':''}><td class="mono">${esc(r.name)}</td><td>${useStructural?r.score:r.score.toFixed(3)}</td><td class="mono small">${esc(String(r.txt).slice(0,70))}…</td><td>${target==="tokens"&&!r.name.startsWith("identity")?`<button class="ghost" onclick="adoptArrangement(${i})">adopt</button>`:""}</td></tr>`).join("")+"</table>"+
     `<div class="warnbox">⚠ Sweep scores rank arrangements only. Higher ≠ solved. Any candidate must survive the shuffled-control comparison and read as sustained English.</div>`;
+}
+function adoptArrangement(i){
+  const r=window.__sweepRows[i];
+  if(!r||!r.arr) return;
+  S.tokens=[...r.arr];
+  S.arrangedBy=r.name;
+  addLog("adoptArrangement",{op:r.name,structuralScore:r.score});
+  alert(`Working token stream is now "${r.name}" arrangement.\n\nNOTE: re-running Preprocess or Tokenize will rebuild from the digit stream and DISCARD this arrangement. The log records what you adopted.\n\nNext: Solvers tab → run shuffled control, then run solver, compare margins.`);
+  renderTranspo();
 }
 </script>
 <script>
