@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Numeric Cipher Workbench</title>
+<style>
+:root{
+  --bg:#0b0e14; --panel:#121722; --panel2:#0e1320; --line:#1f2937;
+  --txt:#c9d4e3; --dim:#6b7a90; --faint:#3b4757;
+  --acc:#4cc2ff; --acc2:#8b7cf6; --ok:#3ddc97; --warn:#ffb454; --bad:#ff6b6b;
+  --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,sans-serif}
+header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+header h1{font:600 13px var(--mono);letter-spacing:.2em;color:var(--dim);margin:0;text-transform:uppercase}
+#tabs{display:flex;flex-wrap:wrap;gap:2px;padding:8px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+#tabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font:12px var(--mono);padding:8px 10px;cursor:pointer}
+#tabs button.active{color:var(--acc);border-bottom-color:var(--acc)}
+main{padding:16px;max-width:1200px;margin:0 auto}
+.tabpane{display:none}.tabpane.show{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.panel h3{margin:0 0 10px;font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+textarea,input[type=text],input[type=number],select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:5px;padding:8px 10px;font:13px var(--mono);outline:none;max-width:100%}
+textarea{width:100%;resize:vertical}
+textarea:focus,input:focus{border-color:var(--acc)}
+button.act{background:#16324a;color:var(--acc);border:1px solid #24537a;border-radius:5px;padding:7px 14px;font:12px var(--mono);cursor:pointer}
+button.act:hover{background:#1b3d5c}
+button.ghost{background:var(--panel2);color:var(--dim);border:1px solid var(--line);border-radius:5px;padding:7px 12px;font:12px var(--mono);cursor:pointer}
+button.danger{background:#3a1420;color:var(--bad);border:1px solid #5c2233;border-radius:5px;padding:7px 12px;font:12px var(--mono);cursor:pointer}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 12px;min-width:120px}
+.stat .k{font:10px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--faint)}
+.stat .v{font:16px var(--mono);color:var(--txt)}
+.stat.ok .v{color:var(--ok)}.stat.warn .v{color:var(--warn)}.stat.bad .v{color:var(--bad)}
+table{border-collapse:collapse;font:12px var(--mono);width:100%}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left}
+th{color:var(--faint);text-transform:uppercase;font-size:10px;letter-spacing:.08em;background:var(--panel2)}
+.scroll{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.mono{font-family:var(--mono)}
+.tokstream{font:13px/2 var(--mono);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;max-height:300px;overflow:auto;word-break:break-word}
+.tok{display:inline-block;margin:1px;padding:1px 4px;border-radius:3px;background:#1a2233;color:var(--dim);cursor:pointer}
+.tok.mapped{background:#123528;color:var(--ok)}
+.tok.hl{outline:1px solid var(--warn)}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font:10px var(--mono);border:1px solid}
+.badge.fact{color:var(--ok);border-color:var(--ok)}
+.badge.assume{color:var(--warn);border-color:var(--warn)}
+.badge.hypo{color:var(--acc2);border-color:var(--acc2)}
+.badge.rej{color:var(--bad);border-color:var(--bad)}
+.note{font-size:12px;color:var(--dim)}
+.warnbox{background:#2a2010;border:1px solid #5c4a22;color:var(--warn);border-radius:6px;padding:8px 12px;font:12px var(--mono);margin:8px 0}
+.okbox{background:#0f2a1e;border:1px solid #1f5c40;color:var(--ok);border-radius:6px;padding:8px 12px;font:12px var(--mono);margin:8px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:800px){.grid2{grid-template-columns:1fr}}
+pre.out{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;font:12px/1.7 var(--mono);white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto}
+label.inline{font:12px var(--mono);color:var(--dim);display:flex;gap:6px;align-items:center}
+.small{font-size:11px;color:var(--faint)}
+#testresults div{font:12px var(--mono);padding:2px 0}
+.pass{color:var(--ok)}.fail{color:var(--bad)}
+</style>
+</head>
+<body>
+<header>
+  <h1>◈ Numeric Cipher Workbench</h1>
+  <span class="small">local · no backend · every transform audited</span>
+</header>
+<div id="tabs"></div>
+<main id="main"></main>
+
+<script>
+"use strict";
+/* ============================================================
+   STATE
+   ============================================================ */
+const S = {
+  raw: "",                 // original pasted text (never altered)
+  normalized: "",          // digits only from raw
+  stream: "",              // digits after preprocessing (working stream)
+  removedPrefix: "", removedSuffix: "",
+  offset: 0, width: 2,
+  tokens: [],              // token stream (strings)
+  trailing: "",            // leftover digits that don't fill a token
+  map: {},                 // token -> {ch, locked}
+  homophonic: false,
+  hypotheses: [],
+  log: [],
+  solverResults: [],
+};
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function digitsOnly(s){ return (s||"").replace(/[^0-9]/g,""); }
+function hashStr(s){ // FNV-1a 32-bit, for audit log
+  let h = 0x811c9dc5;
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = (h*0x01000193)>>>0; }
+  return h.toString(16).padStart(8,"0");
+}
+function nowISO(){ return new Date().toISOString(); }
+function download(name, text, type="text/plain"){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text],{type}));
+  a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
+/* Seeded PRNG (mulberry32) for reproducible solver runs */
+function mulberry32(seed){
+  let a = seed>>>0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ============================================================
+   TOKENIZATION  (pure, unit-tested)
+   ============================================================ */
+function tokenize(stream, offset, width){
+  // returns {tokens, skippedPrefix, trailing}
+  const skippedPrefix = stream.slice(0, offset);
+  const body = stream.slice(offset);
+  const tokens = [];
+  let i = 0;
+  for(; i + width <= body.length; i += width) tokens.push(body.slice(i, i+width));
+  const trailing = body.slice(i);
+  return { tokens, skippedPrefix, trailing };
+}
+
+/* ============================================================
+   STATISTICS (pure)
+   ============================================================ */
+function freqTable(tokens){
+  const f = new Map();
+  tokens.forEach((t,i)=>{
+    if(!f.has(t)) f.set(t,{count:0,positions:[]});
+    const e=f.get(t); e.count++; e.positions.push(i);
+  });
+  return f;
+}
+function indexOfCoincidence(tokens){
+  const n = tokens.length; if(n<2) return 0;
+  let sum=0; for(const {count} of freqTable(tokens).values()) sum += count*(count-1);
+  return sum/(n*(n-1));
+}
+function entropyOf(tokens){
+  const n=tokens.length; if(!n) return 0;
+  let H=0; for(const {count} of freqTable(tokens).values()){ const p=count/n; H-=p*Math.log2(p); }
+  return H;
+}
+function ngrams(tokens, n){
+  const m=new Map();
+  for(let i=0;i+n<=tokens.length;i++){
+    const g=tokens.slice(i,i+n).join(" ");
+    if(!m.has(g)) m.set(g,[]);
+    m.get(g).push(i);
+  }
+  const rep=[...m.entries()].filter(([,pos])=>pos.length>1);
+  rep.sort((a,b)=>b[1].length-a[1].length);
+  return rep;
+}
+function runs(tokens){
+  const out=[];
+  let i=0;
+  while(i<tokens.length){
+    let j=i; while(j+1<tokens.length && tokens[j+1]===tokens[i]) j++;
+    if(j>i) out.push({token:tokens[i], length:j-i+1, position:i});
+    i=j+1;
+  }
+  return out;
+}
+function adjacency(tokens){
+  const before=new Map(), after=new Map();
+  for(let i=0;i<tokens.length;i++){
+    const t=tokens[i];
+    if(i>0){ if(!before.has(t))before.set(t,new Map()); const m=before.get(t); m.set(tokens[i-1],(m.get(tokens[i-1])||0)+1); }
+    if(i<tokens.length-1){ if(!after.has(t))after.set(t,new Map()); const m=after.get(t); m.set(tokens[i+1],(m.get(tokens[i+1])||0)+1); }
+  }
+  return {before,after};
+}
+/* abstract repetition pattern: ABCA etc. */
+function abstractPattern(seq){
+  const seen={}; let next=65; let out="";
+  for(const s of seq){ if(!(s in seen)) seen[s]=String.fromCharCode(next++); out+=seen[s]; }
+  return out;
+}
+
+/* ============================================================
+   ENGLISH DATA (compact, embedded)
+   ============================================================ */
+const ENG_FREQ_ORDER = "ETAOINSHRDLCUMWFGYPBVKJXQZ";
+const ENG_FREQ = {E:12.7,T:9.06,A:8.17,O:7.51,I:6.97,N:6.75,S:6.33,H:6.09,R:5.99,D:4.25,L:4.03,C:2.78,U:2.76,M:2.41,W:2.36,F:2.23,G:2.02,Y:1.97,P:1.93,B:1.49,V:0.98,K:0.77,J:0.15,X:0.15,Q:0.10,Z:0.07};
+/* compact log-freq tables for solver scoring: top English bigrams/trigrams/quadgrams
+   (percent frequencies; anything absent gets a floor penalty) */
+const BG = {TH:2.71,HE:2.33,IN:2.03,ER:1.78,AN:1.61,RE:1.41,ES:1.32,ON:1.32,ST:1.25,NT:1.17,EN:1.13,AT:1.12,ED:1.08,ND:1.07,TO:1.07,OR:1.06,EA:1.00,TI:0.99,AR:0.98,TE:0.98,NG:0.89,AL:0.88,IT:0.88,AS:0.87,IS:0.86,HA:0.83,ET:0.76,SE:0.73,OU:0.72,OF:0.71,LE:0.69,SA:0.67,VE:0.64,RO:0.63,RA:0.61,RI:0.59,HI:0.58,NE:0.57,ME:0.57,DE:0.57,CO:0.56,TA:0.56,EC:0.55,SI:0.55,LL:0.55,SO:0.55,NA:0.54,LI:0.53,LA:0.53,EL:0.52,MA:0.52,DI:0.50,IC:0.50,RT:0.49,NS:0.49,IO:0.49,WH:0.48,BE:0.48,CT:0.46,WA:0.46,UR:0.45,UT:0.45,SS:0.45,PE:0.44,TR:0.44,WI:0.43,OM:0.43,OL:0.42,US:0.42,CH:0.42,PA:0.42,MO:0.41,CE:0.40,TW:0.36,AD:0.36,PL:0.35,GH:0.33,EE:0.33,RS:0.32,IL:0.32,OT:0.32,UN:0.31,OW:0.30,GE:0.30,FO:0.30,PR:0.29,FT:0.22,WO:0.22,SH:0.30,UL:0.24,ID:0.25,AC:0.32,AI:0.26,OO:0.21,KE:0.19,EV:0.21,AY:0.22,BU:0.18,MP:0.17,LO:0.25,BL:0.17,DA:0.22,EW:0.14,FF:0.12,AK:0.11,GR:0.18,IF:0.20,QU:0.09,EX:0.11,SP:0.16,IR:0.23,YO:0.16,RD:0.23,HO:0.28,VI:0.16,YS:0.10,TY:0.14,GA:0.15,CK:0.12,UP:0.15,DO:0.19,HT:0.13,SU:0.16,LY:0.25,EM:0.20,NI:0.24,OS:0.22,AM:0.24,EI:0.13,MI:0.22,YE:0.09,GI:0.12,FE:0.14,KI:0.09,PO:0.20,EF:0.11,UD:0.09,JU:0.05,NO:0.28,BO:0.12,EP:0.13,NC:0.24,AP:0.18,AB:0.14,DS:0.13,GO:0.11,EY:0.10,BY:0.11,MB:0.06,IM:0.16,MU:0.10,OK:0.05,AV:0.13,OC:0.13,OP:0.13,RY:0.13,GS:0.06,AW:0.07,NL:0.06,RU:0.10,PT:0.08,LS:0.10,UG:0.08,DR:0.09,FI:0.13,NU:0.07,LU:0.09,OA:0.06,OB:0.08,IE:0.20,EG:0.09,DU:0.08,UM:0.09,TS:0.19,CA:0.24,CI:0.11,OG:0.07,YT:0.04,RR:0.09,IG:0.15,IB:0.06,IV:0.11,IA:0.14,FR:0.11,NF:0.06,RM:0.10,PI:0.10,SC:0.09,TU:0.11,IZ:0.04,YI:0.03,OI:0.07,UE:0.06,EQ:0.03,EB:0.05,SM:0.06,UC:0.08,GT:0.02,NM:0.03,EO:0.07,UA:0.06,RC:0.07,CU:0.08,RN:0.09,SL:0.06,SF:0.03,OE:0.03,FU:0.06,NW:0.03,SW:0.05,LT:0.07,RG:0.06,SB:0.03,XP:0.03,NH:0.03,WE:0.36,YA:0.04,YM:0.02,TL:0.05,RL:0.06,HR:0.04,JO:0.04,KS:0.04,MY:0.05,GL:0.04,DL:0.03,HU:0.07,XT:0.03,SD:0.02,PU:0.06,DM:0.02,PH:0.06,AU:0.08,GN:0.03,KN:0.03,LD:0.13,MS:0.06,NN:0.07,NV:0.03,RV:0.04,RK:0.06,DN:0.02,PS:0.04,TC:0.03,BR:0.08,VA:0.06,BA:0.09,YB:0.01,YL:0.02,WR:0.03,SQ:0.01,SN:0.03,SK:0.04,WL:0.01,IU:0.02,BI:0.07,RB:0.03,NK:0.05,YP:0.02,MM:0.05,AF:0.06,LM:0.03,AG:0.11,HN:0.02,YC:0.02,YD:0.01,LV:0.02,AH:0.03,DG:0.03,LW:0.01,GU:0.05,SY:0.03,IX:0.02,EU:0.03,UB:0.04,NB:0.03,RP:0.04,DT:0.02,UI:0.04,RF:0.04,OV:0.10,DV:0.02,HY:0.02,OD:0.09,NR:0.02,RW:0.02,XA:0.01,YR:0.01,TB:0.02,TM:0.03,TN:0.02,TP:0.02,TT:0.10,UF:0.02,UK:0.01,UO:0.01,UV:0.01,WD:0.01,WT:0.01,XC:0.02,XI:0.02,YG:0.01,YN:0.02,YW:0.01,ZA:0.01,ZE:0.02,ZI:0.01,ZO:0.01,ZZ:0.01,VO:0.03,VU:0.01,WM:0.01,WN:0.02,WS:0.02,XE:0.01,DW:0.01,DY:0.03,FA:0.06,FL:0.04,FS:0.01,GD:0.01,GM:0.01,HS:0.02,HW:0.01,JA:0.02,JE:0.02,KA:0.02,KL:0.01,KO:0.01,LB:0.01,LC:0.01,LF:0.02,LG:0.01,LK:0.01,LN:0.01,LP:0.02,LR:0.01,MC:0.01,MF:0.01,MN:0.01,MR:0.01,BS:0.02,BT:0.01,BJ:0.01,CL:0.05,CR:0.06,CS:0.02,CY:0.02,DB:0.01,DC:0.01,DD:0.04,DF:0.01,DH:0.01,DJ:0.01,DP:0.01,PP:0.05,HL:0.01,HM:0.02,GY:0.02,GW:0.01,HB:0.01,HD:0.01};
+const TG = {THE:3.51,AND:1.59,ING:1.15,HER:0.82,HAT:0.65,HIS:0.60,THA:0.59,ERE:0.56,FOR:0.56,ENT:0.53,ION:0.51,TER:0.46,WAS:0.46,YOU:0.44,ITH:0.43,VER:0.43,ALL:0.42,WIT:0.40,THI:0.39,TIO:0.38,NDE:0.37,HAS:0.35,NCE:0.34,EDT:0.33,TIS:0.32,OFT:0.31,STH:0.30,MEN:0.29,IVE:0.28,EST:0.28,REA:0.27,COM:0.27,OUR:0.26,ONT:0.26,ATI:0.26,ATE:0.26,EVE:0.25,RES:0.25,ONS:0.25,ARE:0.25,ESS:0.24,NOT:0.24,SHA:0.23,PEO:0.10,PLE:0.14,ONE:0.23,ORT:0.14,HEC:0.15,ANT:0.20,ERS:0.21,OME:0.15,WHE:0.16,NTH:0.28,EAR:0.18,PER:0.17,STA:0.16,ILL:0.16,IST:0.16,ECT:0.15,GHT:0.15,IGH:0.15,ART:0.13,OUL:0.13,ULD:0.13,HOU:0.14,SEL:0.09,VES:0.09,IES:0.13,ISH:0.10,EAT:0.13,ROM:0.13,FRO:0.13,ONG:0.12,USE:0.12,MAN:0.12,UGH:0.10,OUG:0.10,CAN:0.11,ABL:0.08,BLE:0.13,ITI:0.11,TUR:0.09,INE:0.13,URE:0.12,AIN:0.13,DTH:0.19,SOF:0.11,TTH:0.17,ETH:0.15,HES:0.12,INT:0.19,HEN:0.15,HEM:0.09,HEA:0.11,HEE:0.06,WOR:0.10,LIN:0.09,DER:0.13,TED:0.13,NTO:0.09,OTH:0.12,ERA:0.10,ESA:0.09,OUT:0.11,ERT:0.08,ERI:0.09,EOF:0.11,DIN:0.10,ORE:0.11,NGT:0.08,SIN:0.09,AST:0.09,SON:0.09,IONS:0.0,LLY:0.08,ELY:0.05,RIN:0.08,NIN:0.07,TIN:0.08,EEN:0.08,ITS:0.06,ITE:0.07,OUN:0.07,END:0.07,ENC:0.07,ENS:0.06,ANC:0.06,ANS:0.06,EAS:0.07,LES:0.08,NES:0.07,TES:0.06,SES:0.05,IDE:0.06,IND:0.07,INA:0.06,INS:0.06,OST:0.06,OSE:0.06,ANY:0.05,ARD:0.06,ATH:0.07,EAD:0.06,ELL:0.07,ERC:0.03,ERE_:0,GEN:0.04,HAV:0.06,IMA:0.03,IRE:0.04,LAN:0.05,LAT:0.04,LEA:0.05,LLO:0.04,MOR:0.05,NAL:0.05,NDS:0.05,OWN:0.05,RAT:0.05,RED:0.07,RIG:0.03,SAN:0.04,SSI:0.04,TAT:0.04,TEN:0.06,TRA:0.06,UND:0.06,UNT:0.03,WAY:0.04,WHI:0.06,YTH:0.03,GHT_:0,SHO:0.04,PRO:0.06,PRE:0.04,PLA:0.04,POS:0.03,REC:0.04,REN:0.04,RET:0.03,SEC:0.03,SIO:0.04,SIT:0.03,SPE:0.03,STO:0.04,STR:0.05,TAN:0.03,THO:0.06,TIC:0.05,TIV:0.03,TOR:0.04,TRI:0.03,UNI:0.03,VEN:0.04,VID:0.02,VIN:0.02,WIL:0.04,WIN:0.03,NEW:0.03,NOW:0.03,OLD:0.03,ORD:0.03,OVE:0.06,PAR:0.04,PEN:0.02,MIN:0.04,MON:0.03,NAT:0.03,LON:0.03,LOW:0.03,MAT:0.03,MAY:0.03,MET:0.02,KIN:0.03,LAR:0.02,LED:0.04,LET:0.03,LIF:0.02,LIK:0.03,ISS:0.03,ITY:0.05,JUS:0.02,GRE:0.03,HAD:0.05,HAN:0.05,HAR:0.04,FIN:0.03,FIR:0.03,GET:0.02,GIV:0.01,DAY:0.03,DEN:0.03,DES:0.04,DID:0.02,DIS:0.04,EAC:0.02,ACH:0.04,ACT:0.04,ADE:0.03,AGE:0.04,AGO:0.01,AID:0.02,AKE:0.04,ALS:0.03,AME:0.04,APP:0.03,ASE:0.04,ASS:0.03,ATT:0.03,BER:0.03,BET:0.02,BUT:0.05,CAL:0.03,CAR:0.03,CAT:0.02,CEN:0.02,CES:0.03,CIA:0.02,CON:0.07,COU:0.04,CTI:0.03,CUR:0.02};
+const COMMON_WORDS = ["THE","OF","AND","TO","IN","A","IS","THAT","IT","FOR","AS","WITH","WAS","HIS","HE","BE","NOT","BY","BUT","HAVE","YOU","WHICH","ARE","ON","OR","HER","HAD","AT","FROM","THIS","MY","THEY","ALL","THEIR","AN","SHE","HAS","WERE","ME","BEEN","HIM","ONE","SO","IF","WILL","THERE","WHO","NO","WE","WHEN","WHAT","YOUR","MORE","WOULD","THEM","SOME","THAN","MAY","UPON","ITS","OUT","INTO","OUR","THESE","MAN","UP","DO","LIKE","SHALL","GREAT","NOW","SUCH","SHOULD","OTHER","ONLY","ANY","THEN","ABOUT","THOSE","CAN","MADE","WELL","OLD","MUST","US","SAID","TIME","EVEN","NEW","COULD","VERY","MUCH","OWN","MOST","MIGHT","FIRST","AFTER","YET","TWO","PEOPLE","OVER","BEFORE","WHERE","SAME","RIGHT","GOOD","STATE","EVERY","BECAUSE","LIFE","BOTH","BETWEEN","UNDER","NEVER","DAY","WORLD","THINK","WHILE","AGAINST","LAND","HOUSE","HERE","PLACE","THREE","WORK","LONG","WITHOUT","SEE","POWER","GOLD","SILVER","BURIED","TREASURE","VAULT","MILES","NORTH","SOUTH","EAST","WEST","STONE","IRON","POTS","DEPOSIT","LOCATED","COUNTY","BEDFORD","EXCAVATION","FOLLOWING","DESCRIPTION","PAPER","NUMBER","INFORMATION","NAMES","HEIRS","JEWELS","POUNDS","FEET","GROUND","CONSISTS","EXCHANGED","SAVE","TRANSPORTATION","VALUE","SECURELY","PACKED"];
+</script>
+<script>
+"use strict";
+/* ============================================================
+   SCORING for solvers: letters + bigram + trigram log scores
+   ============================================================ */
+const logBG = {}, logTG = {}, logUF = {};
+for(const k in BG) logBG[k]=Math.log10(BG[k]/100);
+for(const k in TG) if(k.length===3) logTG[k]=Math.log10(TG[k]/100);
+for(const k in ENG_FREQ) logUF[k]=Math.log10(ENG_FREQ[k]/100);
+const FLOOR_BG=-4.5, FLOOR_TG=-5.5, FLOOR_UF=-4;
+
+const WORD_BONUS_LIST = null; // initialized lazily below (COMMON_WORDS defined in first block)
+let _wordsByLen = null;
+function wordsByLen(){
+  if(!_wordsByLen){
+    _wordsByLen = {};
+    for(const w of COMMON_WORDS){
+      if(w.length<3 || w.length>9) continue;
+      (_wordsByLen[w.length] = _wordsByLen[w.length] || new Set()).add(w);
+    }
+  }
+  return _wordsByLen;
+}
+function scoreText(txt){
+  // txt: uppercase letters + '?' placeholders. '?' contributes floor.
+  let s=0;
+  for(let i=0;i<txt.length;i++){
+    const u=txt[i];
+    s += (logUF[u] !== undefined ? logUF[u] : FLOOR_UF)*0.5;
+    if(i+1<txt.length){
+      const b=txt.slice(i,i+2);
+      s += (logBG[b]!==undefined?logBG[b]:FLOOR_BG);
+    }
+    if(i+2<txt.length){
+      const t=txt.slice(i,i+3);
+      s += (logTG[t]!==undefined?logTG[t]:FLOOR_TG)*1.5;
+    }
+  }
+  // common-word bonus: reward substrings that spell frequent English words.
+  // NOTE: this biases the OPTIMIZER only; validation must still use shuffled
+  // controls, since accidental words occur in any high-scoring assignment.
+  const byLen = wordsByLen();
+  let bonus=0;
+  for(const lenStr in byLen){
+    const L=+lenStr, set=byLen[lenStr];
+    for(let i=0;i+L<=txt.length;i++){
+      if(set.has(txt.substr(i,L))) bonus += L*L*0.15;
+    }
+  }
+  return (s + bonus) / Math.max(1,txt.length); // normalized per char
+}
+
+/* ============================================================
+   PREPROCESSING
+   ============================================================ */
+function applyPreprocess(){
+  const norm = S.normalized;
+  let work = norm;
+  let removedP = "", removedS = "";
+  const audit = [];
+
+  const pn = parseInt($("preN").value||"0",10);
+  const sn = parseInt($("sufN").value||"0",10);
+  const ps = digitsOnly($("preStr").value);
+  const ss = digitsOnly($("sufStr").value);
+
+  if(ps){
+    if(work.startsWith(ps)){ removedP += ps; work = work.slice(ps.length); audit.push(`removed exact prefix "${ps}" (${ps.length} digits)`); }
+    else audit.push(`WARN: prefix string "${ps}" not found at start — nothing removed`);
+  }
+  if(pn>0){
+    const cut = work.slice(0,pn); removedP += cut; work = work.slice(pn);
+    audit.push(`removed first ${pn} digits: "${cut}"`);
+  }
+  if(ss){
+    if(work.endsWith(ss)){ removedS = ss + removedS; work = work.slice(0, -ss.length); audit.push(`removed exact suffix "${ss}" (${ss.length} digits)`); }
+    else audit.push(`WARN: suffix string "${ss}" not found at end — nothing removed`);
+  }
+  if(sn>0){
+    const cut = work.slice(-sn); removedS = cut + removedS; work = work.slice(0,-sn);
+    audit.push(`removed last ${sn} digits: "${cut}"`);
+  }
+
+  S.stream = work; S.removedPrefix=removedP; S.removedSuffix=removedS;
+  retokenize();
+  renderPreprocess(audit);
+  addLog("preprocess",{prefixN:pn,suffixN:sn,prefixStr:ps,suffixStr:ss,removedPrefix:removedP,removedSuffix:removedS,remaining:work.length});
+}
+
+function retokenize(){
+  const {tokens, trailing} = tokenize(S.stream, S.offset, S.width);
+  S.tokens = tokens; S.trailing = trailing;
+}
+
+/* ============================================================
+   LOG
+   ============================================================ */
+function addLog(action, params, result){
+  S.log.push({
+    ts: nowISO(),
+    action,
+    inputHash: hashStr(S.normalized),
+    streamHash: hashStr(S.stream),
+    offset: S.offset, width: S.width,
+    mappings: JSON.parse(JSON.stringify(S.map)),
+    params: params||{},
+    result: result||null
+  });
+  renderLogCount();
+}
+
+/* ============================================================
+   PARTIAL DECODE
+   ============================================================ */
+function partialDecode(tokens, map){
+  return tokens.map(t => map[t] ? map[t].ch : "?");
+}
+function decodeString(tokens, map){
+  return partialDecode(tokens, map).join("");
+}
+
+/* ============================================================
+   CRIB ALIGNMENT (pure)
+   ============================================================ */
+function cribAlign(tokens, crib, homophonic){
+  // crib: uppercase letters only
+  const results = [];
+  const L = crib.length;
+  for(let pos=0; pos+L<=tokens.length; pos++){
+    const t2p = {}; // token -> letter
+    const p2t = {}; // letter -> token (for one-to-one check)
+    let ok = true, conflicts = 0;
+    for(let i=0;i<L;i++){
+      const tok = tokens[pos+i], ch = crib[i];
+      if(t2p[tok] !== undefined && t2p[tok] !== ch){ ok=false; break; }
+      if(!homophonic && p2t[ch] !== undefined && p2t[ch] !== tok){ ok=false; break; }
+      t2p[tok]=ch; p2t[ch]=tok;
+    }
+    if(!ok) continue;
+    // also check against locked user mappings
+    let clash = false;
+    for(const tok in t2p){
+      if(S.map[tok] && S.map[tok].locked && S.map[tok].ch !== t2p[tok]){ clash=true; break; }
+    }
+    if(clash) continue;
+    // score: how much this alignment "reuses" repeated tokens & how well pattern fits
+    const uniq = Object.keys(t2p).length;
+    const reuse = L - uniq; // repeated-letter structure satisfied
+    // bonus: consistency with existing (unlocked) mappings
+    let agree=0;
+    for(const tok in t2p) if(S.map[tok] && S.map[tok].ch===t2p[tok]) agree++;
+    results.push({pos, map:t2p, reuse, agree, score: reuse*2 + agree*3});
+  }
+  results.sort((a,b)=>b.score-a.score || a.pos-b.pos);
+  return results;
+}
+
+/* ============================================================
+   PATTERN MATCHING against word list
+   ============================================================ */
+function wordsMatchingPattern(pat){
+  return COMMON_WORDS.filter(w => w.length===pat.length && abstractPattern(w.split(""))===pat);
+}
+
+/* ============================================================
+   SEGMENTATION (dynamic programming with word list)
+   ============================================================ */
+const WORDSET = new Set(COMMON_WORDS);
+function segmentDP(txt){
+  // txt uppercase, possibly with '?'; returns best segmentation or null
+  const n = txt.length;
+  const best = new Array(n+1).fill(null); best[0]={score:0,words:[]};
+  const maxW = 14;
+  for(let i=1;i<=n;i++){
+    for(let j=Math.max(0,i-maxW); j<i; j++){
+      if(!best[j]) continue;
+      const w = txt.slice(j,i);
+      if(w.includes("?")) continue;
+      let sc = -Infinity;
+      if(WORDSET.has(w)) sc = best[j].score + Math.log(1+w.length*w.length);
+      else if(w.length===1 && (w==="A"||w==="I")) sc = best[j].score + 0.1;
+      if(sc>-Infinity && (!best[i] || sc>best[i].score)){
+        best[i]={score:sc, words:best[j].words.concat([w])};
+      }
+    }
+    // fallback: allow single unknown char with penalty so DP always completes
+    if(!best[i] && best[i-1]) best[i]={score:best[i-1].score-3, words:best[i-1].words.concat([txt[i-1]])};
+  }
+  return best[n];
+}
+
+/* ============================================================
+   SOLVERS
+   ============================================================ */
+function buildInitialKey(tokens, rng, locked){
+  // map each unique token to a letter; frequency-rank init
+  const f=[...freqTable(tokens).entries()].sort((a,b)=>b[1].count-a[1].count);
+  const key={};
+  let ei=0;
+  for(const [tok] of f){
+    if(locked[tok]){ key[tok]=locked[tok]; continue; }
+    key[tok]=ENG_FREQ_ORDER[ei % 26]; ei++;
+  }
+  return key;
+}
+function decodeWithKey(tokens,key){ let s=""; for(const t of tokens) s+= key[t]||"?"; return s; }
+
+function hillClimb(tokens, opts){
+  const {seed=1, iters=8000, locked={}, restarts=1, annealing=false, homophonic=false} = opts;
+  const uniq=[...new Set(tokens)];
+  const free = uniq.filter(t=>!locked[t]);
+  let globalBest=null;
+  for(let r=0;r<restarts;r++){
+    const rng = mulberry32(seed + r*7919);
+    let key = buildInitialKey(tokens,rng,locked);
+    // random shuffle of free assignments for restarts>0
+    if(r>0){
+      for(let i=free.length-1;i>0;i--){
+        const j=Math.floor(rng()*(i+1));
+        const a=free[i],b=free[j];
+        const tmp=key[a]; key[a]=key[b]; key[b]=tmp;
+      }
+    }
+    let cur = scoreText(decodeWithKey(tokens,key));
+    let T = annealing ? 1.0 : 0;
+    const cool = annealing ? Math.pow(0.001/1.0, 1/iters) : 1;
+    for(let it=0; it<iters; it++){
+      if(free.length<2) break;
+      const i=Math.floor(rng()*free.length);
+      let j=Math.floor(rng()*free.length); if(j===i) j=(j+1)%free.length;
+      const a=free[i], b=free[j];
+      // monoalphabetic: swap-only moves preserve one-to-one structure.
+      // homophonic mode adds reassign moves (many tokens → same letter allowed).
+      const mode = (homophonic && rng()<0.3) ? "reassign" : "swap";
+      const oldA=key[a], oldB=key[b];
+      if(mode==="swap"){ key[a]=oldB; key[b]=oldA; }
+      else { key[a]=ENG_FREQ_ORDER[Math.floor(rng()*26)]; }
+      const ns = scoreText(decodeWithKey(tokens,key));
+      const accept = ns>cur || (annealing && rng() < Math.exp((ns-cur)/Math.max(T,1e-9)));
+      if(accept) cur=ns;
+      else { key[a]=oldA; key[b]=oldB; }
+      if(annealing) T*=cool;
+    }
+    const cand={score:cur, key:JSON.parse(JSON.stringify(key)), plaintext:decodeWithKey(tokens,key), seed:seed+r*7919, iters, restart:r};
+    if(!globalBest || cand.score>globalBest.score) globalBest=cand;
+  }
+  return globalBest;
+}
+
+/* control: same solver on shuffled tokens to estimate baseline achievable score */
+function shuffledControlScore(tokens, seed, iters){
+  const rng=mulberry32(seed^0xBEEF);
+  const shuf=[...tokens];
+  for(let i=shuf.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [shuf[i],shuf[j]]=[shuf[j],shuf[i]]; }
+  return hillClimb(shuf,{seed:seed^0xBEEF, iters, locked:{}, restarts:1}).score;
+}
+
+/* ============================================================
+   TRANSPOSITIONS (pure; operate on arrays; reversible)
+   ============================================================ */
+const TRANS = {
+  reverse: a => [...a].reverse(),
+  oddEven: a => a.filter((_,i)=>i%2===0).concat(a.filter((_,i)=>i%2===1)),
+  evenOdd: a => a.filter((_,i)=>i%2===1).concat(a.filter((_,i)=>i%2===0)),
+  cyclicShift: (a,k) => a.slice(k%a.length).concat(a.slice(0,k%a.length)),
+  railfence: (a, rails) => {
+    if(rails<2) return [...a];
+    const rows=Array.from({length:rails},()=>[]);
+    let r=0,dir=1;
+    for(const x of a){ rows[r].push(x); r+=dir; if(r===rails-1||r===0) dir*=-1; }
+    return [].concat(...rows);
+  },
+  gridRowToCol: (a, cols) => { // write row-major, read column-major
+    const rows=Math.ceil(a.length/cols); const out=[];
+    for(let c=0;c<cols;c++) for(let r=0;r<rows;r++){ const i=r*cols+c; if(i<a.length) out.push(a[i]); }
+    return out;
+  },
+  gridColToRow: (a, cols) => { // write column-major, read row-major
+    const rows=Math.ceil(a.length/cols); const grid=[]; let i=0;
+    for(let c=0;c<cols;c++) for(let r=0;r<rows;r++){ if(i<a.length){ grid[r*cols+c]=a[i++]; } }
+    return grid.filter(x=>x!==undefined);
+  },
+  reversedRows: (a, cols) => {
+    const out=[];
+    for(let r=0;r*cols<a.length;r++){ const row=a.slice(r*cols,(r+1)*cols); out.push(...row.reverse()); }
+    return out;
+  },
+  reversedCols: (a, cols) => {
+    const rows=Math.ceil(a.length/cols); const out=new Array(a.length);
+    for(let c=0;c<cols;c++){
+      const col=[]; for(let r=0;r<rows;r++){const i=r*cols+c; if(i<a.length) col.push(a[i]);}
+      col.reverse();
+      let k=0; for(let r=0;r<rows;r++){const i=r*cols+c; if(i<a.length) out[i]=col[k++];}
+    }
+    return out;
+  },
+  boustrophedon: (a, cols) => {
+    const out=[];
+    for(let r=0;r*cols<a.length;r++){ let row=a.slice(r*cols,(r+1)*cols); if(r%2===1) row=row.reverse(); out.push(...row); }
+    return out;
+  },
+  routeSpiral: (a, cols) => {
+    const rows=Math.ceil(a.length/cols);
+    if(rows*cols!==a.length) return null; // only exact grids
+    const grid=[]; for(let r=0;r<rows;r++) grid.push(a.slice(r*cols,(r+1)*cols));
+    const out=[]; let top=0,bot=rows-1,left=0,right=cols-1;
+    while(top<=bot&&left<=right){
+      for(let c=left;c<=right;c++) out.push(grid[top][c]); top++;
+      for(let r=top;r<=bot;r++) out.push(grid[r][right]); right--;
+      if(top<=bot){ for(let c=right;c>=left;c--) out.push(grid[bot][c]); bot--; }
+      if(left<=right){ for(let r=bot;r>=top;r--) out.push(grid[r][left]); left++; }
+    }
+    return out;
+  }
+};
+function factorizations(n){
+  const f=[]; for(let c=2;c<=n/2;c++) if(n%c===0) f.push(c); return f;
+}
+/* permutations helper (bounded) */
+function permutations(arr, limit){
+  const out=[[...arr]]; 
+  const c=new Array(arr.length).fill(0); const a=[...arr];
+  let i=0;
+  while(i<arr.length && out.length<limit){
+    if(c[i]<i){
+      const k = i%2===0 ? 0 : c[i];
+      [a[k],a[i]]=[a[i],a[k]];
+      out.push([...a]); c[i]++; i=0;
+    } else { c[i]=0; i++; }
+  }
+  return out;
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   UI: TABS
+   ============================================================ */
+const TABS = ["Input","Preprocess","Tokenize","Frequency","Patterns","Substitution","Cribs","Solvers","Transposition","Hypotheses","Log","Tests"];
+const tabsEl = $("tabs"), mainEl = $("main");
+TABS.forEach((t,i)=>{
+  const b=document.createElement("button"); b.textContent=t;
+  b.onclick=()=>showTab(i); tabsEl.appendChild(b);
+  const d=document.createElement("div"); d.className="tabpane"; d.id="pane"+i; mainEl.appendChild(d);
+});
+function showTab(i){
+  [...tabsEl.children].forEach((b,j)=>b.classList.toggle("active",j===i));
+  [...document.querySelectorAll(".tabpane")].forEach((p,j)=>p.classList.toggle("show",j===i));
+  const render = [renderInput,renderPreprocess,renderTokenize,renderFrequency,renderPatterns,renderSubst,renderCribs,renderSolvers,renderTranspo,renderHypo,renderLogTab,renderTests][i];
+  if(render) render();
+}
+
+/* ============================================================
+   TAB 0: INPUT
+   ============================================================ */
+$("pane0").innerHTML = `
+<div class="panel"><h3>Ciphertext Input</h3>
+<textarea id="rawin" rows="10" placeholder="Paste numeric ciphertext. Spaces, line breaks, and any grouping are preserved in the original; a digit-only stream is derived from it."></textarea>
+<div class="row" style="margin-top:8px">
+  <button class="act" onclick="ingest()">Ingest</button>
+  <button class="ghost" onclick="loadSample()">Load sample (random demo digits)</button>
+</div>
+<div id="ingeststats" class="row"></div>
+<div class="note">The original text is never modified. All analysis uses a derived digit stream; every derivation step is counted and shown.</div>
+</div>`;
+function ingest(){
+  S.raw = $("rawin").value;
+  S.normalized = digitsOnly(S.raw);
+  S.stream = S.normalized; S.removedPrefix=""; S.removedSuffix="";
+  S.map = {}; S.solverResults=[];
+  retokenize();
+  $("ingeststats").innerHTML = `
+    <div class="stat"><div class="k">raw chars</div><div class="v">${S.raw.length}</div></div>
+    <div class="stat"><div class="k">digits found</div><div class="v">${S.normalized.length}</div></div>
+    <div class="stat"><div class="k">non-digits ignored</div><div class="v">${S.raw.length - S.normalized.length}</div></div>
+    <div class="stat"><div class="k">input hash</div><div class="v">${hashStr(S.normalized)}</div></div>`;
+  addLog("ingest",{rawLen:S.raw.length,digits:S.normalized.length});
+}
+function loadSample(){
+  // deterministic pseudo-random demo digits (NOT any real cipher)
+  const rng=mulberry32(42); let s="";
+  for(let i=0;i<395;i++){ s+=Math.floor(rng()*100).toString().padStart(2,"0").slice(0,1); }
+  // group in fives for realism
+  $("rawin").value = (s.match(/.{1,5}/g)||[]).join(" ");
+  ingest();
+}
+
+/* ============================================================
+   TAB 1: PREPROCESS
+   ============================================================ */
+$("pane1").innerHTML = `
+<div class="panel"><h3>Removal Controls</h3>
+<div class="row">
+  <label class="inline">remove first N digits <input type="number" id="preN" value="0" min="0" style="width:80px"></label>
+  <label class="inline">remove last N digits <input type="number" id="sufN" value="0" min="0" style="width:80px"></label>
+</div>
+<div class="row">
+  <label class="inline">remove exact prefix <input type="text" id="preStr" placeholder="digits" style="width:140px"></label>
+  <label class="inline">remove exact suffix <input type="text" id="sufStr" placeholder="digits" style="width:140px"></label>
+</div>
+<div class="row">
+  <button class="act" onclick="applyPreprocess()">Apply</button>
+  <button class="ghost" onclick="$('sufStr').value='92000';applyPreprocess()">Test: remove final 92000</button>
+  <button class="ghost" onclick="$('preN').value=0;$('sufN').value=0;$('preStr').value='';$('sufStr').value='';applyPreprocess()">Reset to original</button>
+</div>
+<div id="prestats"></div>
+<div id="preaudit"></div>
+</div>`;
+function renderPreprocess(audit){
+  const n=S.stream.length;
+  const even = n%2===0;
+  $("prestats").innerHTML = `
+  <div class="row">
+    <div class="stat"><div class="k">original digits</div><div class="v">${S.normalized.length}</div></div>
+    <div class="stat"><div class="k">removed prefix</div><div class="v">${S.removedPrefix.length||0}</div></div>
+    <div class="stat"><div class="k">removed suffix</div><div class="v">${S.removedSuffix.length||0}</div></div>
+    <div class="stat"><div class="k">remaining</div><div class="v">${n}</div></div>
+    <div class="stat ${even?'ok':'warn'}"><div class="k">divisible by 2</div><div class="v">${even?'YES':'NO'}</div></div>
+    <div class="stat"><div class="k">symbols @ width ${S.width}, offset ${S.offset}</div><div class="v">${S.tokens.length}${S.trailing?` (+${S.trailing.length} trailing)`:''}</div></div>
+  </div>
+  ${S.removedPrefix?`<div class="note">prefix removed: <span class="mono">"${esc(S.removedPrefix)}"</span></div>`:''}
+  ${S.removedSuffix?`<div class="note">suffix removed: <span class="mono">"${esc(S.removedSuffix)}"</span></div>`:''}`;
+  if(audit && audit.length){
+    $("preaudit").innerHTML = audit.map(a=> a.startsWith("WARN")
+      ? `<div class="warnbox">${esc(a)}</div>` : `<div class="okbox">${esc(a)}</div>`).join("");
+  }
+}
+
+/* ============================================================
+   TAB 2: TOKENIZE
+   ============================================================ */
+$("pane2").innerHTML = `
+<div class="panel"><h3>Tokenization</h3>
+<div class="row">
+  <label class="inline">offset <input type="number" id="offin" value="0" min="0" max="4" style="width:70px"></label>
+  <label class="inline">token width <select id="widin"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></label>
+  <button class="act" onclick="setTok()">Apply</button>
+</div>
+<div class="note">Digits are concatenated continuously; the original visual grouping (e.g. blocks of 5) is ignored for pairing. Offset skips that many leading digits before splitting.</div>
+<div id="tokstats"></div>
+<div id="tokwarn"></div>
+<div class="panel" style="margin-top:10px"><h3>Token Stream</h3><div id="tokview" class="tokstream"></div></div>
+<div class="panel"><h3>Width Comparison</h3><div id="widcmp"></div></div>
+</div>`;
+function setTok(){
+  S.offset = parseInt($("offin").value||"0",10);
+  S.width = parseInt($("widin").value,10);
+  retokenize();
+  addLog("tokenize",{offset:S.offset,width:S.width,tokens:S.tokens.length,trailing:S.trailing});
+  renderTokenize();
+}
+function renderTokenize(){
+  $("offin").value=S.offset; $("widin").value=S.width;
+  $("tokstats").innerHTML = `<div class="row">
+    <div class="stat"><div class="k">stream digits</div><div class="v">${S.stream.length}</div></div>
+    <div class="stat"><div class="k">offset skipped</div><div class="v">${S.offset}</div></div>
+    <div class="stat"><div class="k">tokens</div><div class="v">${S.tokens.length}</div></div>
+    <div class="stat"><div class="k">unique tokens</div><div class="v">${new Set(S.tokens).size}</div></div>
+    <div class="stat ${S.trailing?'bad':'ok'}"><div class="k">trailing digits</div><div class="v">${S.trailing?`"${S.trailing}"`:'none'}</div></div>
+  </div>`;
+  $("tokwarn").innerHTML = S.trailing
+    ? `<div class="warnbox">⚠ ${S.trailing.length} trailing digit(s) "${esc(S.trailing)}" do not fill a full token of width ${S.width}. They are NOT dropped from the stream — they are excluded from the token list and flagged here.</div>` : "";
+  $("tokview").innerHTML = S.tokens.slice(0,2000).map((t,i)=>
+    `<span class="tok ${S.map[t]?'mapped':''}" title="pos ${i}">${esc(t)}</span>`).join("") +
+    (S.tokens.length>2000?`<div class="note">…showing first 2000 of ${S.tokens.length}</div>`:"");
+  // width comparison
+  let cmp="<table><tr><th>width</th><th>tokens</th><th>unique</th><th>trailing</th><th>IC</th><th>entropy</th></tr>";
+  for(let w=1;w<=5;w++){
+    const {tokens,trailing}=tokenize(S.stream,S.offset,w);
+    cmp+=`<tr><td>${w}</td><td>${tokens.length}</td><td>${new Set(tokens).size}</td><td>${trailing?`"${esc(trailing)}"`:'—'}</td><td>${indexOfCoincidence(tokens).toFixed(5)}</td><td>${entropyOf(tokens).toFixed(3)}</td></tr>`;
+  }
+  $("widcmp").innerHTML=cmp+"</table>";
+}
+
+/* ============================================================
+   TAB 3: FREQUENCY
+   ============================================================ */
+$("pane3").innerHTML = `
+<div class="panel"><h3>Token Frequencies</h3>
+<div class="row"><button class="ghost" onclick="renderFrequency('num')">Sort numerically</button>
+<button class="ghost" onclick="renderFrequency('freq')">Sort by frequency</button>
+<button class="act" onclick="autoRankMap()">Apply rank→English-frequency mapping (unlocked only)</button>
+<label class="inline">permutation bound <input type="number" id="permBound" value="24" min="1" max="720" style="width:80px"></label>
+<button class="ghost" onclick="tiePerms()">Enumerate tie-group permutations</button></div>
+<div id="tiewarn"></div>
+<div class="scroll" id="freqtbl"></div>
+</div>
+<div class="panel"><h3>Cipher vs English (side by side, by rank)</h3><div class="scroll" id="sidecmp"></div></div>
+<div id="permout"></div>`;
+function renderFrequency(sort){
+  const f=[...freqTable(S.tokens).entries()];
+  const n=S.tokens.length||1;
+  if(sort==="num") f.sort((a,b)=>a[0].localeCompare(b[0]));
+  else f.sort((a,b)=>b[1].count-a[1].count);
+  const byFreq=[...freqTable(S.tokens).entries()].sort((a,b)=>b[1].count-a[1].count);
+  const rank={}; byFreq.forEach(([t],i)=>rank[t]=i+1);
+  let h="<table><tr><th>token</th><th>count</th><th>%</th><th>rank</th><th>mapped</th><th>positions (first 12)</th></tr>";
+  for(const [t,e] of f){
+    h+=`<tr><td class="mono">${esc(t)}</td><td>${e.count}</td><td>${(100*e.count/n).toFixed(2)}</td><td>${rank[t]}</td><td>${S.map[t]?esc(S.map[t].ch)+(S.map[t].locked?" 🔒":""):"—"}</td><td class="small">${e.positions.slice(0,12).join(", ")}${e.positions.length>12?"…":""}</td></tr>`;
+  }
+  $("freqtbl").innerHTML=h+"</table>";
+  // ties
+  const groups={};
+  byFreq.forEach(([t,e])=>{ (groups[e.count]=groups[e.count]||[]).push(t); });
+  const ties=Object.entries(groups).filter(([,g])=>g.length>1);
+  $("tiewarn").innerHTML = ties.length
+    ? `<div class="warnbox">⚠ Frequency ties exist: ${ties.map(([c,g])=>`count ${c}: {${g.join(", ")}}`).join(" · ")}. Rank-based mapping is ambiguous within each tie group.</div>`
+    : `<div class="okbox">No frequency ties among tokens.</div>`;
+  // side by side
+  let s="<table><tr><th>rank</th><th>cipher token</th><th>cipher %</th><th>english letter</th><th>english %</th></tr>";
+  byFreq.slice(0,26).forEach(([t,e],i)=>{
+    const L=ENG_FREQ_ORDER[i]||"—";
+    s+=`<tr><td>${i+1}</td><td class="mono">${esc(t)}</td><td>${(100*e.count/n).toFixed(2)}</td><td>${L}</td><td>${L!=="—"?ENG_FREQ[L]:"—"}</td></tr>`;
+  });
+  $("sidecmp").innerHTML=s+"</table>";
+}
+function autoRankMap(){
+  const byFreq=[...freqTable(S.tokens).entries()].sort((a,b)=>b[1].count-a[1].count);
+  byFreq.slice(0,26).forEach(([t],i)=>{
+    if(!(S.map[t]&&S.map[t].locked)) S.map[t]={ch:ENG_FREQ_ORDER[i],locked:false};
+  });
+  addLog("autoRankMap",{applied:Math.min(26,byFreq.length)});
+  renderFrequency('freq'); renderSubst();
+}
+function tiePerms(){
+  const bound=parseInt($("permBound").value,10)||24;
+  const byFreq=[...freqTable(S.tokens).entries()].sort((a,b)=>b[1].count-a[1].count);
+  const groups={};
+  byFreq.forEach(([t,e])=>{ (groups[e.count]=groups[e.count]||[]).push(t); });
+  const ties=Object.entries(groups).filter(([,g])=>g.length>1).sort((a,b)=>b[0]-a[0]);
+  let out="";
+  for(const [c,g] of ties){
+    const perms=permutations(g,bound);
+    out+=`<div class="panel"><h3>tie group (count ${c}): ${g.join(", ")} — ${perms.length} permutation(s)${perms.length>=bound?" (bounded)":""}</h3>
+    <div class="small mono">${perms.slice(0,50).map(p=>p.join("·")).join("<br>")}${perms.length>50?"<br>…":""}</div></div>`;
+  }
+  $("permout").innerHTML = out||`<div class="okbox">No tie groups.</div>`;
+  addLog("tiePermutations",{bound,groups:ties.length});
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   TAB 4: PATTERNS
+   ============================================================ */
+$("pane4").innerHTML = `
+<div class="panel"><h3>Repeated N-grams</h3>
+<div class="row"><label class="inline">n from <input type="number" id="ngmin" value="2" min="2" style="width:60px"></label>
+<label class="inline">to <input type="number" id="ngmax" value="6" min="2" style="width:60px"></label>
+<button class="act" onclick="renderPatterns()">Recompute</button></div>
+<div class="scroll" id="ngtbl"></div></div>
+<div class="panel"><h3>Runs (X X, X X X …)</h3><div id="runstbl"></div></div>
+<div class="panel"><h3>Pattern → Word Candidates</h3>
+<div class="row"><label class="inline">word length filter <input type="number" id="patlen" value="0" min="0" style="width:60px" title="0 = any"></label></div>
+<div class="scroll" id="pattbl"></div>
+<div class="note">Patterns computed from repeated token sequences; matched against built-in common-word list only (extendable). Absence of a match is not evidence against a hypothesis.</div></div>
+<div class="panel"><h3>Segmentation of Current Partial Decode (DP over word list)</h3>
+<button class="act" onclick="segNow()">Segment current decode</button>
+<pre class="out" id="segout"></pre></div>`;
+function renderPatterns(){
+  const lo=parseInt($("ngmin")?.value||"2",10), hi=parseInt($("ngmax")?.value||"6",10);
+  let h="<table><tr><th>n</th><th>sequence</th><th>count</th><th>positions</th><th>pattern</th></tr>";
+  const pats=new Set();
+  for(let n=lo;n<=hi;n++){
+    for(const [g,pos] of ngrams(S.tokens,n).slice(0,30)){
+      const seq=g.split(" ");
+      const pat=abstractPattern(seq);
+      pats.add(pat);
+      h+=`<tr><td>${n}</td><td class="mono">${esc(g)}</td><td>${pos.length}</td><td class="small">${pos.join(", ")}</td><td class="mono">${pat}</td></tr>`;
+    }
+  }
+  $("ngtbl").innerHTML=h+"</table>";
+  const rr=runs(S.tokens);
+  $("runstbl").innerHTML = rr.length
+    ? "<table><tr><th>token</th><th>run length</th><th>position</th></tr>"+rr.map(r=>`<tr><td class="mono">${esc(r.token)}</td><td>${r.length}</td><td>${r.position}</td></tr>`).join("")+"</table>"
+    : `<div class="note">No immediate repeats found.</div>`;
+  const lf=parseInt($("patlen")?.value||"0",10);
+  let p="<table><tr><th>pattern</th><th>matching common words</th></tr>";
+  for(const pat of pats){
+    if(lf && pat.length!==lf) continue;
+    const ws=wordsMatchingPattern(pat);
+    p+=`<tr><td class="mono">${pat}</td><td>${ws.length?ws.join(", "):"<span class='small'>no match in word list</span>"}</td></tr>`;
+  }
+  $("pattbl").innerHTML=p+"</table>";
+}
+function segNow(){
+  const txt=decodeString(S.tokens,S.map);
+  const res=segmentDP(txt);
+  $("segout").textContent = res ? res.words.join(" ") + `\n\n[DP score ${res.score.toFixed(1)} — segmentation is a hypothesis-scoring aid, not proof of English]` : "(no segmentation)";
+  addLog("segment",{score:res?res.score:null});
+}
+
+/* ============================================================
+   TAB 5: SUBSTITUTION
+   ============================================================ */
+$("pane5").innerHTML = `
+<div class="panel"><h3>Add / Edit Mapping</h3>
+<div class="row">
+  <label class="inline">token <input type="text" id="mtok" style="width:80px" placeholder="81"></label>
+  <label class="inline">letter <input type="text" id="mch" style="width:50px" maxlength="1" placeholder="E"></label>
+  <label class="inline"><input type="checkbox" id="mlock"> lock</label>
+  <button class="act" onclick="addMap()">Assign</button>
+  <label class="inline"><input type="checkbox" id="homoph" onchange="S.homophonic=this.checked;renderSubst()"> homophonic mode (allow many tokens → same letter without warning)</label>
+</div>
+<div class="note">Mappings are user hypotheses. Nothing here is assumed true by the tool (81=E is NOT preset).</div>
+<div id="maptbl"></div></div>
+<div class="panel"><h3>Live Partial Decode</h3><div id="livedec" class="tokstream"></div></div>`;
+function addMap(){
+  const t=digitsOnly($("mtok").value), c=($("mch").value||"").toUpperCase().replace(/[^A-Z]/g,"");
+  if(!t||!c) return;
+  if(!S.homophonic){
+    const clash=Object.entries(S.map).find(([tok,m])=>m.ch===c && tok!==t);
+    if(clash && !confirm(`Letter ${c} is already assigned to token ${clash[0]}. Assign anyway (homophonic)?`)) return;
+  }
+  S.map[t]={ch:c,locked:$("mlock").checked};
+  addLog("mapAssign",{token:t,ch:c,locked:$("mlock").checked});
+  renderSubst();
+}
+function renderSubst(){
+  $("homoph").checked=S.homophonic;
+  const rows=Object.entries(S.map).sort((a,b)=>a[0].localeCompare(b[0]));
+  $("maptbl").innerHTML = rows.length ? "<table><tr><th>token</th><th>letter</th><th>locked</th><th></th></tr>"+
+    rows.map(([t,m])=>`<tr><td class="mono">${esc(t)}</td><td class="mono">${esc(m.ch)}</td>
+    <td><button class="ghost" onclick="S.map['${t}'].locked=!S.map['${t}'].locked;addLog('mapLockToggle',{token:'${t}'});renderSubst()">${m.locked?"🔒 locked":"unlocked"}</button></td>
+    <td><button class="danger" onclick="delete S.map['${t}'];addLog('mapRemove',{token:'${t}'});renderSubst()">remove</button></td></tr>`).join("")+"</table>"
+    : `<div class="note">No mappings yet.</div>`;
+  $("livedec").innerHTML = S.tokens.slice(0,2000).map((t,i)=>{
+    const m=S.map[t];
+    return `<span class="tok ${m?'mapped':''}" title="token ${esc(t)} @ pos ${i}">${m?esc(m.ch):esc(t)}</span>`;
+  }).join("") + (S.tokens.length>2000?`<div class="note">…first 2000 of ${S.tokens.length}</div>`:"");
+}
+
+/* ============================================================
+   TAB 6: CRIBS
+   ============================================================ */
+$("pane6").innerHTML = `
+<div class="panel"><h3>Crib Input</h3>
+<textarea id="cribin" rows="2" placeholder="e.g. THE TREASURE IS BURIED"></textarea>
+<div class="row" style="margin-top:8px">
+  <label class="inline">normalize <select id="cribnorm"><option value="letters">letters only</option><option value="spaces">preserve spaces</option><option value="punct">preserve punctuation</option></select></label>
+  <label class="inline"><input type="checkbox" id="cribhomo"> homophonic mode</label>
+  <button class="act" onclick="runCrib()">Slide crib</button>
+</div>
+<div class="row">quick: ${["THE","AND","ING","THAT","PEOPLE","SHALL"].map(w=>`<button class="ghost" onclick="$('cribin').value='${w}';runCrib()">${w}</button>`).join("")}
+<span class="small">(convenience buttons only — not privileged by scoring)</span></div>
+<div class="note">Spaces/punctuation in a crib act as alignment gaps only when preserved — cipher tokens are matched to letters; non-letters split the crib into separately-checked segments at fixed relative offsets.</div>
+</div>
+<div class="panel"><h3>Alignments (consistency-checked, ranked)</h3><div class="scroll" id="cribout"></div></div>`;
+function runCrib(){
+  let raw=($("cribin").value||"").toUpperCase();
+  const mode=$("cribnorm").value;
+  const homo=$("cribhomo").checked;
+  let crib;
+  if(mode==="letters") crib=raw.replace(/[^A-Z]/g,"");
+  else if(mode==="spaces") crib=raw.replace(/[^A-Z ]/g,"");
+  else crib=raw.replace(/[^A-Z .,;:'!?-]/g,"");
+  if(!crib){ $("cribout").innerHTML="<div class='note'>Empty crib.</div>"; return; }
+  // for spaces/punct modes: split into letter segments with fixed offsets
+  const segs=[]; let cur="",off=0,st=0;
+  for(let i=0;i<crib.length;i++){
+    if(/[A-Z]/.test(crib[i])){ if(!cur) st=i; cur+=crib[i]; }
+    else if(cur){ segs.push({txt:cur,at:st}); cur=""; }
+  }
+  if(cur) segs.push({txt:cur,at:st});
+  // align: token index pos corresponds to crib char index — evaluate joint consistency of all segments
+  const L=crib.length;
+  const results=[];
+  for(let pos=0; pos+L<=S.tokens.length; pos++){
+    const t2p={},p2t={}; let ok=true;
+    for(const seg of segs){
+      for(let i=0;i<seg.txt.length && ok;i++){
+        const tok=S.tokens[pos+seg.at+i], ch=seg.txt[i];
+        if(t2p[tok]!==undefined && t2p[tok]!==ch) ok=false;
+        else if(!homo && p2t[ch]!==undefined && p2t[ch]!==tok) ok=false;
+        else { t2p[tok]=ch; p2t[ch]=tok; }
+      }
+      if(!ok) break;
+    }
+    if(!ok) continue;
+    let clash=false, agree=0;
+    for(const tok in t2p){
+      if(S.map[tok]&&S.map[tok].locked&&S.map[tok].ch!==t2p[tok]){clash=true;break;}
+      if(S.map[tok]&&S.map[tok].ch===t2p[tok]) agree++;
+    }
+    if(clash) continue;
+    const letters=segs.reduce((a,s)=>a+s.txt.length,0);
+    const reuse=letters-Object.keys(t2p).length;
+    results.push({pos,map:t2p,reuse,agree,score:reuse*2+agree*3});
+  }
+  results.sort((a,b)=>b.score-a.score||a.pos-b.pos);
+  addLog("crib",{crib,mode,homophonic:homo,alignments:results.length});
+  if(!results.length){ $("cribout").innerHTML=`<div class="warnbox">No consistent alignment found for "${esc(crib)}".</div>`; return; }
+  $("cribout").innerHTML = "<table><tr><th>position</th><th>score</th><th>reused letters</th><th>agrees w/ map</th><th>implied mappings</th><th></th></tr>"+
+   results.slice(0,60).map((r,i)=>`<tr><td>${r.pos}</td><td>${r.score}</td><td>${r.reuse}</td><td>${r.agree}</td>
+   <td class="mono small">${Object.entries(r.map).map(([t,c])=>`${t}→${c}`).join("  ")}</td>
+   <td><button class="ghost" onclick='applyCrib(${JSON.stringify(r.map)})'>apply (unlocked)</button></td></tr>`).join("")+"</table>"+
+   `<div class="warnbox">⚠ ${results.length} consistent alignment(s) exist. Consistency alone is weak evidence — short cribs align by chance frequently. Compare counts against the shuffled-control expectation in Solvers → Validation.</div>`;
+}
+function applyCrib(m){
+  for(const t in m) if(!(S.map[t]&&S.map[t].locked)) S.map[t]={ch:m[t],locked:false};
+  addLog("cribApply",{mappings:m});
+  renderSubst(); showTab(5);
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   TAB 7: SOLVERS
+   ============================================================ */
+$("pane7").innerHTML = `
+<div class="panel"><h3>Solver Configuration</h3>
+<div class="row">
+  <label class="inline">mode <select id="solmode">
+    <option value="hill">hill climb</option>
+    <option value="anneal">simulated annealing</option>
+    <option value="restart">random-restart hill climb</option>
+  </select></label>
+  <label class="inline">iterations <input type="number" id="soliters" value="8000" style="width:90px"></label>
+  <label class="inline">restarts <input type="number" id="solrest" value="5" style="width:60px"></label>
+  <label class="inline">seed <input type="number" id="solseed" value="1" style="width:80px"></label>
+  <label class="inline"><input type="checkbox" id="uselocked" checked> respect locked mappings</label>
+  <label class="inline"><input type="checkbox" id="solhomo"> homophonic move space</label>
+</div>
+<div class="row">
+  <button class="act" onclick="runSolver()">Run solver</button>
+  <button class="ghost" onclick="runControl()">Run shuffled-control baseline</button>
+  <button class="danger" onclick="S.solverResults=[];renderSolvers()">Clear results</button>
+</div>
+<div class="note">Scoring: normalized log-probability from embedded English unigram+bigram+trigram tables. Crib-guided solving = lock mappings from a crib first (Cribs tab → apply, then lock in Substitution tab), then run with "respect locked" on. Homophonic move space: solver may assign multiple tokens to the same letter via reassign moves.</div>
+</div>
+<div class="panel"><h3>Validation / Anti-Self-Deception</h3><div id="valbox"><div class="note">Run the shuffled-control baseline to estimate the score a solver reaches on order-destroyed text with identical token frequencies. A real decryption should beat this margin clearly AND read as sustained grammatical English — a high score alone proves nothing.</div></div></div>
+<div class="panel"><h3>Candidates (top kept, deduplicated)</h3><div id="solout"></div></div>`;
+let controlScore=null;
+function lockedMapForSolver(){
+  const locked={};
+  if($("uselocked").checked) for(const t in S.map) if(S.map[t].locked) locked[t]=S.map[t].ch;
+  return locked;
+}
+function runSolver(){
+  if(!S.tokens.length){ alert("No tokens. Ingest and tokenize first."); return; }
+  const mode=$("solmode").value;
+  const iters=parseInt($("soliters").value,10)||8000;
+  const seed=parseInt($("solseed").value,10)||1;
+  const restarts=mode==="restart"?(parseInt($("solrest").value,10)||5):1;
+  const locked=lockedMapForSolver();
+  const t0=performance.now();
+  const best=hillClimb(S.tokens,{seed,iters,locked,restarts,annealing:mode==="anneal",homophonic:$("solhomo").checked});
+  const ms=(performance.now()-t0).toFixed(0);
+  best.mode=mode; best.lockedCount=Object.keys(locked).length; best.ms=ms;
+  // dedupe by plaintext
+  if(!S.solverResults.some(r=>r.plaintext===best.plaintext)) S.solverResults.push(best);
+  S.solverResults.sort((a,b)=>b.score-a.score);
+  S.solverResults=S.solverResults.slice(0,10);
+  addLog("solver",{mode,iters,seed,restarts,locked:Object.keys(locked)},{score:best.score,ms});
+  renderSolvers();
+}
+function runControl(){
+  if(!S.tokens.length) return;
+  const iters=parseInt($("soliters").value,10)||8000;
+  const seed=parseInt($("solseed").value,10)||1;
+  const scores=[];
+  for(let k=0;k<3;k++) scores.push(shuffledControlScore(S.tokens,seed+k,iters));
+  controlScore=scores.reduce((a,b)=>a+b,0)/scores.length;
+  addLog("shuffledControl",{iters,seed,runs:3},{meanScore:controlScore});
+  renderSolvers();
+}
+function renderSolvers(){
+  if(controlScore!==null){
+    $("valbox").innerHTML=`<div class="row">
+      <div class="stat warn"><div class="k">shuffled-control mean score</div><div class="v">${controlScore.toFixed(4)}</div></div>
+      ${S.solverResults[0]?`<div class="stat ${S.solverResults[0].score>controlScore+0.15?'ok':'bad'}"><div class="k">best real score − control</div><div class="v">${(S.solverResults[0].score-controlScore).toFixed(4)}</div></div>`:""}
+    </div>
+    <div class="note">Shuffled controls reach surprisingly high scores because monoalphabetic solvers over-fit letter statistics. A margin near zero means the "solution" is indistinguishable from noise. Short accidental words (THE, AND) appear by chance in any high-scoring assignment — do not treat them as confirmation.</div>`;
+  }
+  $("solout").innerHTML = S.solverResults.length ?
+    S.solverResults.map((r,i)=>{
+      const seg=segmentDP(r.plaintext.slice(0,120));
+      return `<div class="panel" style="margin-bottom:8px">
+      <div class="row">
+        <span class="badge hypo">candidate ${i+1}</span>
+        <span class="mono small">score ${r.score.toFixed(4)} · ${r.mode} · seed ${r.seed} · ${r.iters} iters · ${r.lockedCount} locked · ${r.ms}ms</span>
+        <button class="ghost" onclick='adoptKey(${i})'>adopt key as unlocked mappings</button>
+        <button class="ghost" onclick='rerun(${i})'>reproduce (same seed)</button>
+      </div>
+      <pre class="out">${esc(r.plaintext)}</pre>
+      <div class="small">DP segmentation attempt: <span class="mono">${seg?esc(seg.words.slice(0,25).join(" ")):"—"}</span></div>
+      <div class="small">key: <span class="mono">${Object.entries(r.key).slice(0,40).map(([t,c])=>t+"→"+c).join(" ")}${Object.keys(r.key).length>40?" …":""}</span></div>
+      </div>`;
+    }).join("")
+    : `<div class="note">No candidates yet.</div>`;
+}
+function adoptKey(i){
+  const r=S.solverResults[i];
+  for(const t in r.key) if(!(S.map[t]&&S.map[t].locked)) S.map[t]={ch:r.key[t],locked:false};
+  addLog("adoptSolverKey",{candidate:i,score:r.score});
+  renderSubst(); showTab(5);
+}
+function rerun(i){
+  const r=S.solverResults[i];
+  $("solseed").value=r.seed; $("soliters").value=r.iters;
+  $("solmode").value=r.mode==="restart"?"restart":r.mode;
+  runSolver();
+}
+
+/* ============================================================
+   TAB 8: TRANSPOSITION
+   ============================================================ */
+$("pane8").innerHTML = `
+<div class="panel"><h3>Apply Transposition</h3>
+<div class="row">
+  <label class="inline">target <select id="trtarget"><option value="tokens">token stream (mappings travel with tokens)</option><option value="plain">current partial decode string</option></select></label>
+  <label class="inline">operation <select id="trop">
+    <option value="reverse">reverse</option>
+    <option value="oddEven">odd/even extraction</option>
+    <option value="evenOdd">even/odd extraction</option>
+    <option value="cyclic">cyclic shift k</option>
+    <option value="railfence">rail fence</option>
+    <option value="gridRowToCol">grid: row-major → column-major</option>
+    <option value="gridColToRow">grid: column-major → row-major</option>
+    <option value="reversedRows">grid: reversed rows</option>
+    <option value="reversedCols">grid: reversed columns</option>
+    <option value="boustrophedon">boustrophedon</option>
+    <option value="routeSpiral">route: spiral (exact grids only)</option>
+  </select></label>
+  <label class="inline">param (k / rails / cols) <input type="number" id="trparam" value="2" min="1" style="width:70px"></label>
+  <button class="act" onclick="runTrans()">Apply (preview)</button>
+  <button class="ghost" onclick="sweepTrans()">Sweep all ops × all factor widths</button>
+</div>
+<div class="note">Key experimental property: transposing the TOKEN stream moves symbols; any mapping like 81→E stays attached to token 81 wherever it lands. Transposing the decode string moves characters at absolute positions instead. Both are available deliberately.</div>
+<div class="row" id="trfactors"></div>
+<pre class="out" id="trout"></pre>
+<div class="scroll" id="trsweep"></div>
+</div>`;
+function currentTransposedView(op,param,target){
+  const arr = target==="tokens" ? S.tokens : decodeString(S.tokens,S.map).split("");
+  let res;
+  switch(op){
+    case "reverse": res=TRANS.reverse(arr); break;
+    case "oddEven": res=TRANS.oddEven(arr); break;
+    case "evenOdd": res=TRANS.evenOdd(arr); break;
+    case "cyclic": res=TRANS.cyclicShift(arr,param); break;
+    case "railfence": res=TRANS.railfence(arr,param); break;
+    case "routeSpiral": res=TRANS.routeSpiral(arr,param); break;
+    default: res=TRANS[op](arr,param);
+  }
+  return res;
+}
+function runTrans(){
+  const op=$("trop").value, param=parseInt($("trparam").value,10)||2, target=$("trtarget").value;
+  const res=currentTransposedView(op,param,target);
+  if(!res){ $("trout").textContent="(spiral requires an exact rows×cols factorization — pick a divisor of length)"; return; }
+  addLog("transposition",{op,param,target});
+  if(target==="tokens"){
+    $("trout").textContent = "tokens: "+res.slice(0,150).join(" ")+(res.length>150?" …":"")+
+      "\n\ndecode: "+res.map(t=>S.map[t]?S.map[t].ch:"?").join("").slice(0,600);
+  } else {
+    $("trout").textContent = res.join("").slice(0,800);
+  }
+  $("trfactors").innerHTML = `<span class="small">valid grid widths for length ${target==="tokens"?S.tokens.length:decodeString(S.tokens,S.map).length}: ${factorizations(target==="tokens"?S.tokens.length:S.tokens.length).join(", ")||"none (prime or <4)"}</span>`;
+}
+function sweepTrans(){
+  const target=$("trtarget").value;
+  const arr = target==="tokens" ? S.tokens : decodeString(S.tokens,S.map).split("");
+  const rows=[];
+  const evalArr = a => {
+    if(!a) return null;
+    const txt = target==="tokens" ? a.map(t=>S.map[t]?S.map[t].ch:"?").join("") : a.join("");
+    return {txt, score: scoreText(txt.replace(/\?/g,""))};
+  };
+  const pushRow=(name,a)=>{ const e=evalArr(a); if(e) rows.push({name,...e}); };
+  pushRow("reverse",TRANS.reverse(arr));
+  pushRow("oddEven",TRANS.oddEven(arr));
+  pushRow("evenOdd",TRANS.evenOdd(arr));
+  for(let r=2;r<=7;r++) pushRow(`railfence ${r}`,TRANS.railfence(arr,r));
+  for(let k=1;k<=5;k++) pushRow(`cyclic ${k}`,TRANS.cyclicShift(arr,k));
+  for(const c of factorizations(arr.length)){
+    pushRow(`row→col w${c}`,TRANS.gridRowToCol(arr,c));
+    pushRow(`col→row w${c}`,TRANS.gridColToRow(arr,c));
+    pushRow(`revRows w${c}`,TRANS.reversedRows(arr,c));
+    pushRow(`revCols w${c}`,TRANS.reversedCols(arr,c));
+    pushRow(`boustro w${c}`,TRANS.boustrophedon(arr,c));
+    pushRow(`spiral w${c}`,TRANS.routeSpiral(arr,c));
+  }
+  rows.sort((a,b)=>b.score-a.score);
+  addLog("transpositionSweep",{target,tested:rows.length});
+  $("trsweep").innerHTML="<table><tr><th>op</th><th>score</th><th>preview</th></tr>"+
+    rows.slice(0,40).map(r=>`<tr><td class="mono">${esc(r.name)}</td><td>${r.score.toFixed(3)}</td><td class="mono small">${esc(r.txt.slice(0,70))}…</td></tr>`).join("")+"</table>"+
+    `<div class="warnbox">⚠ Sweep scores rank arrangements only. Higher ≠ solved. Any candidate must survive the shuffled-control comparison and read as sustained English.</div>`;
+}
+</script>
+<script>
+"use strict";
+/* ============================================================
+   TAB 9: HYPOTHESES
+   ============================================================ */
+S.hypotheses = [
+  {text:"final 92000 may be metadata, coordinate, pointer, terminator, or removable suffix", status:"tentative"},
+  {text:"removing 92000 leaves 390 digits", status:"tentative"},
+  {text:"390 digits may form 195 two-digit tokens", status:"tentative"},
+  {text:"page 91 may suggest reading figures as two-digit units", status:"tentative"},
+  {text:"page 92 may be relevant to final 92000", status:"tentative"},
+  {text:"81 may be plaintext E because it appears frequently", status:"tentative"},
+];
+const STATUSES=["confirmed","likely","tentative","rejected"];
+const SBADGE={confirmed:"fact",likely:"assume",tentative:"hypo",rejected:"rej"};
+$("pane9").innerHTML = `
+<div class="panel"><h3>Hypothesis Tracker</h3>
+<div class="row"><input type="text" id="hnew" placeholder="new hypothesis…" style="flex:1;min-width:240px">
+<button class="act" onclick="addHypo()">Add (tentative)</button></div>
+<div id="hlist"></div>
+<div class="note">Starting entries are TENTATIVE by design; nothing is preloaded as proven. "Confirmed" should be reserved for claims verifiable from counts inside this tool or sustained decodes that beat controls.</div></div>`;
+function addHypo(){
+  const t=$("hnew").value.trim(); if(!t) return;
+  S.hypotheses.push({text:t,status:"tentative"});
+  $("hnew").value=""; addLog("hypothesisAdd",{text:t}); renderHypo();
+}
+function renderHypo(){
+  $("hlist").innerHTML = S.hypotheses.map((h,i)=>`
+  <div class="row" style="border-bottom:1px solid var(--line);padding:6px 0">
+    <span class="badge ${SBADGE[h.status]}">${h.status}</span>
+    <span style="flex:1">${esc(h.text)}</span>
+    <select onchange="S.hypotheses[${i}].status=this.value;addLog('hypothesisStatus',{i:${i},status:this.value});renderHypo()">
+      ${STATUSES.map(s=>`<option ${s===h.status?"selected":""}>${s}</option>`).join("")}
+    </select>
+    <button class="danger" onclick="S.hypotheses.splice(${i},1);renderHypo()">✕</button>
+  </div>`).join("");
+}
+
+/* ============================================================
+   TAB 10: LOG + EXPORT
+   ============================================================ */
+$("pane10").innerHTML = `
+<div class="panel"><h3>Experiment Log <span id="logcount" class="small"></span></h3>
+<div class="row">
+  <button class="act" onclick="download('experiment-log.json',JSON.stringify(S.log,null,2),'application/json')">Export log JSON</button>
+  <button class="ghost" onclick="importLog()">Import log JSON</button>
+  <input type="file" id="logfile" accept=".json" style="display:none">
+</div>
+<div class="scroll" id="logtbl"></div></div>
+<div class="panel"><h3>Data Export</h3>
+<div class="row">
+  <button class="ghost" onclick="download('digits.txt',S.stream)">digit stream</button>
+  <button class="ghost" onclick="download('tokens.txt',S.tokens.join(' '))">token stream</button>
+  <button class="ghost" onclick="exportFreqCSV()">frequencies CSV</button>
+  <button class="ghost" onclick="exportNgramCSV()">n-grams CSV</button>
+  <button class="ghost" onclick="download('key.json',JSON.stringify(S.map,null,2),'application/json')">key JSON</button>
+  <button class="ghost" onclick="download('candidate.txt',S.solverResults[0]?S.solverResults[0].plaintext:decodeString(S.tokens,S.map))">candidate plaintext TXT</button>
+</div></div>`;
+function renderLogCount(){ const el=$("logcount"); if(el) el.textContent=`(${S.log.length} entries)`; }
+function renderLogTab(){
+  renderLogCount();
+  $("logtbl").innerHTML="<table><tr><th>ts</th><th>action</th><th>hashes</th><th>params</th><th>result</th></tr>"+
+    S.log.slice().reverse().map(e=>`<tr><td class="small">${e.ts.slice(11,19)}</td><td class="mono">${esc(e.action)}</td>
+    <td class="small mono">in ${e.inputHash}<br>st ${e.streamHash}</td>
+    <td class="small mono">${esc(JSON.stringify(e.params)).slice(0,140)}</td>
+    <td class="small mono">${e.result?esc(JSON.stringify(e.result)).slice(0,100):"—"}</td></tr>`).join("")+"</table>";
+}
+function importLog(){
+  const f=$("logfile"); f.onchange=()=>{
+    const r=new FileReader();
+    r.onload=()=>{ try{ S.log=JSON.parse(r.result); renderLogTab(); }catch(e){ alert("Invalid JSON"); } };
+    r.readAsText(f.files[0]);
+  }; f.click();
+}
+function exportFreqCSV(){
+  const n=S.tokens.length||1;
+  let csv="token,count,percent\n";
+  for(const [t,e] of [...freqTable(S.tokens).entries()].sort((a,b)=>b[1].count-a[1].count))
+    csv+=`${t},${e.count},${(100*e.count/n).toFixed(3)}\n`;
+  download("frequencies.csv",csv,"text/csv");
+}
+function exportNgramCSV(){
+  let csv="n,sequence,count,positions\n";
+  for(let n=2;n<=5;n++) for(const [g,pos] of ngrams(S.tokens,n)) csv+=`${n},"${g}",${pos.length},"${pos.join(" ")}"\n`;
+  download("ngrams.csv",csv,"text/csv");
+}
+
+/* ============================================================
+   TAB 11: UNIT TESTS
+   ============================================================ */
+$("pane11").innerHTML=`<div class="panel"><h3>Internal Unit Tests</h3>
+<button class="act" onclick="runTests()">Run all tests</button>
+<div id="testresults" style="margin-top:10px"></div></div>`;
+function runTests(){
+  const T=[]; const eq=(name,a,b)=>T.push({name,pass:JSON.stringify(a)===JSON.stringify(b),got:a,want:b});
+  // tokenization
+  eq("tokenize basic", tokenize("7562828591",0,2).tokens, ["75","62","82","85","91"]);
+  eq("tokenize offset 1", tokenize("7562828591",1,2).tokens, ["56","28","28","59"]);
+  eq("tokenize offset1 trailing", tokenize("7562828591",1,2).trailing, "1");
+  eq("tokenize width 3 trailing", tokenize("1234567",0,3).trailing, "7");
+  eq("tokenize never drops silently", tokenize("123",0,2).tokens.join("")+tokenize("123",0,2).trailing, "123");
+  // suffix removal logic (simulated)
+  {
+    const s="12345 92000"; const d=digitsOnly(s);
+    eq("digitsOnly", d, "1234592000");
+    eq("suffix removal", d.endsWith("92000")?d.slice(0,-5):d, "12345");
+  }
+  // frequency
+  {
+    const f=freqTable(["81","02","81"]);
+    eq("freq count", f.get("81").count, 2);
+    eq("freq positions", f.get("81").positions, [0,2]);
+  }
+  // IC on uniform vs constant
+  eq("IC constant stream = 1", indexOfCoincidence(["A","A","A","A"]), 1);
+  // mapping consistency in crib
+  {
+    const toks=["81","02","81","33"];
+    const r=cribAlign(toks,"ABA",false); // pattern must place same letter on same token
+    eq("crib finds pattern-consistent pos", r.some(x=>x.pos===0), true);
+    const r2=cribAlign(toks,"AAB",false);
+    eq("crib rejects contradiction", r2.some(x=>x.pos===0), false);
+  }
+  // abstract pattern
+  eq("pattern ABCA", abstractPattern(["10","20","30","10"]), "ABCA");
+  // transposition reversibility
+  {
+    const a=["1","2","3","4","5","6"];
+    eq("reverse involution", TRANS.reverse(TRANS.reverse(a)), a);
+    eq("row→col then col→row w2", TRANS.gridColToRow(TRANS.gridRowToCol(a,2),2), a);
+    eq("boustrophedon involution", TRANS.boustrophedon(TRANS.boustrophedon(a,3),3), a);
+    eq("cyclic shift inverse", TRANS.cyclicShift(TRANS.cyclicShift(a,2),4), a);
+    eq("oddEven/evenOdd sizes", TRANS.oddEven(a).length, 6);
+  }
+  // mapping travels with token under transposition
+  {
+    const toks=["81","02","33"]; const map={"81":{ch:"E"}};
+    const moved=TRANS.reverse(toks);
+    eq("81→E travels with token", moved.map(t=>map[t]?map[t].ch:"?").join(""), "??E".split("").reverse().join("")==="E??"?"E??":"E??");
+  }
+  // seeded rng reproducibility
+  {
+    const r1=mulberry32(7), r2=mulberry32(7);
+    eq("PRNG reproducible", [r1(),r1()], [r2(),r2()]);
+  }
+  const el=$("testresults");
+  el.innerHTML=T.map(t=>`<div class="${t.pass?'pass':'fail'}">${t.pass?"✓":"✗"} ${esc(t.name)}${t.pass?"":" — got "+esc(JSON.stringify(t.got))+" want "+esc(JSON.stringify(t.want))}</div>`).join("")+
+  `<div style="margin-top:8px" class="${T.every(t=>t.pass)?'pass':'fail'}">${T.filter(t=>t.pass).length}/${T.length} passed</div>`;
+  addLog("unitTests",{},{passed:T.filter(t=>t.pass).length,total:T.length});
+}
+function renderInput(){} // static
+function renderTests(){}
+function renderCribs(){} // static form; results render on demand
+function renderTranspo(){} // static form; results render on demand
+
+/* boot */
+showTab(0);
+</script>
+</body>
+</html>
